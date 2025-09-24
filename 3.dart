@@ -29,59 +29,92 @@ class _TabuadaPageState extends State<TabuadaPage> {
   TextEditingController answerController = TextEditingController();
   int correctAnswers = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadState();
-  }
-
-  // Carregar o estado salvo
-  Future<void> _loadState() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+  // Carregar o progresso salvo
+  void loadProgress() async {
+    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      currentTabuada = prefs.getInt('currentTabuada') ?? 1;
-      correctAnswers = prefs.getInt('correctAnswers') ?? 0;
-      currentMultiplicando = prefs.getInt('currentMultiplicando') ?? 1;
+      currentTabuada = prefs.getInt('currentTabuada') ?? 1; // Pega a tabuada salva ou começa com 1
+      currentMultiplicando = prefs.getInt('currentMultiplicando') ?? 1; // Pega o multiplicando salvo ou começa com 1
+      correctAnswers = prefs.getInt('correctAnswers') ?? 0; // Pega os acertos salvos ou começa com 0
     });
   }
 
-  // Salvar o estado atual
-  Future<void> _saveState() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('currentTabuada', currentTabuada);
-    await prefs.setInt('correctAnswers', correctAnswers);
-    await prefs.setInt('currentMultiplicando', currentMultiplicando);
+  // Salvar o progresso
+  void saveProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setInt('currentTabuada', currentTabuada);
+    prefs.setInt('currentMultiplicando', currentMultiplicando);
+    prefs.setInt('correctAnswers', correctAnswers);
   }
 
   // Checar se a resposta está correta
   void checkAnswer() {
     int correctResult = currentTabuada * currentMultiplicando;
-    int userAnswer = int.tryParse(answerController.text) ?? -1;
+    
+    // Verificando a resposta do usuário
+    String answerText = answerController.text.trim();
+    
+    if (answerText.isEmpty) {
+      // Se o campo estiver vazio, mostramos um alerta
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Por favor, insira uma resposta.'),
+        duration: Duration(seconds: 2),
+      ));
+      return;
+    }
 
+    // Tentando converter a resposta para número
+    int userAnswer;
+    try {
+      userAnswer = int.parse(answerText);
+    } catch (e) {
+      // Se não for um número válido, mostramos um erro
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Resposta inválida. Digite apenas números.'),
+        duration: Duration(seconds: 2),
+      ));
+      return;
+    }
+
+    // Imprimir para debug
+    print('Resposta correta: $correctResult');
+    print('Resposta do usuário: $userAnswer');
+
+    // Comparando a resposta do usuário com a resposta correta
     if (userAnswer == correctResult) {
       correctAnswers++;
       // Avança para o próximo número da tabuada
       if (currentMultiplicando < 10) {
-        currentMultiplicando++;
+        setState(() {
+          currentMultiplicando++;  // Atualiza a multiplicação
+        });
       } else {
         // Avança para a próxima tabuada
         if (currentTabuada < 10) {
-          currentTabuada++;
-          currentMultiplicando = 1;
+          setState(() {
+            currentTabuada++;       // Atualiza a tabuada
+            currentMultiplicando = 1;  // Reseta o multiplicando
+          });
         }
       }
+      // Salvar progresso após a resposta correta
+      saveProgress();
     } else {
       // Se errar, não avança na tabuada
-      // Exibimos um feedback
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Resposta errada, tente novamente!'),
-        duration: Duration(seconds: 1),
+        duration: Duration(seconds: 2),
       ));
     }
 
-    // Salva o estado após a tentativa
-    _saveState();
+    // Limpa o campo de resposta
     answerController.clear();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    loadProgress(); // Carregar o progresso ao iniciar
   }
 
   @override
